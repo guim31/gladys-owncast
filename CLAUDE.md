@@ -224,6 +224,16 @@ code de ce dépôt. Compléter ce fichier quand un nouveau piège est découvert
 - **Fin de direct** : confirmée après 60 s hors ligne (`endGraceMs`), mesurée depuis
   `lastDisconnectTime` ; un logiciel de diffusion qui se reconnecte avant ne termine pas le direct
   et n'en recommence pas un.
+- **Reconnexion entre deux lectures** : Owncast est en ligne aux deux lectures avec un nouveau
+  `lastConnectTime` (et `lastDisconnectTime` repasse à `null` dès la connexion, vérifié dans le
+  code d'Owncast, `services/stream/stream.go`). L'écart se mesure depuis la dernière lecture qui a
+  vu l'ancien direct (`lastOnlineAt` en mémoire, `seenOnlineAt` écrit dans `/data` toutes les
+  5 min) : au-delà de la grâce, fin de l'ancien direct puis début du nouveau. Même règle au
+  redémarrage de l'intégration.
+- **Horloges** : les dates d'Owncast sont ramenées à l'horloge du conteneur par `serverTime`
+  (sinon un serveur décalé de quelques minutes termine chaque direct à la première coupure).
+- **Owncast injoignable** : l'appareil garde son dernier état ; s'il revient hors ligne sans
+  `lastDisconnectTime` (redémarré), la fin du direct est datée de la dernière lecture qui l'a vu.
 - **Seuil de spectateurs** : les filtres de scène ne font qu'égalité, donc le déclencheur
   `viewers_reached` émet un événement par palier franchi (`VIEWER_MILESTONES`, une fois par
   direct) et le filtre `threshold` (select requis) choisit le palier. Changer la liste des paliers

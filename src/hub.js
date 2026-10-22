@@ -60,6 +60,10 @@ export const HUB_TIMINGS = {
 };
 
 const MINUTE = 60_000;
+// Two connection times closer than this are the same connection (rounding).
+const RECONNECT_TOLERANCE_MS = 2_000;
+// How often the last reading of a live is written to /data.
+const SEEN_ONLINE_EVERY_MS = 5 * MINUTE;
 
 const emptySaved = () => ({ known: false, live: false });
 
@@ -97,6 +101,8 @@ export class OwncastHub {
     this.connection = null;
     this.discovered = null;
     this.saved = emptySaved();
+    this.lastOnlineAt = null;
+    this.clockOffset = 0;
     this.pollTimer = null;
     this.stopped = false;
     // What fails again at every cycle (Gladys refusing, the reading loop):
@@ -130,6 +136,7 @@ export class OwncastHub {
         // Another server: the live saved for the previous one means nothing.
         this.saved = emptySaved();
         this.store.save(this.saved);
+        this.lastOnlineAt = null;
       }
       this.signature = signature;
       this.client = config.url
@@ -232,7 +239,13 @@ export class OwncastHub {
       return client === this.client && this.applyFailure(err);
     }
     let changed = false;
-    if (this.serverAt === 0 || this.now() - this.serverAt >= this.timings.configEveryMs) {
+    // The viewer count vanished during a live: hidden just now, or 0 viewers.
+    const vanished = status.online && status.viewers === null && (this.status?.viewers ?? 0) > 0;
+    if (
+      vanished ||
+      this.serverAt === 0 ||
+      this.now() - this.serverAt >= this.timings.configEveryMs
+    ) {
       changed = (await this.readServer(client)) || changed;
     }
     if (client.hasAdmin) {
@@ -325,6 +338,17 @@ export class OwncastHub {
     this.error = null;
     this.readAt = this.now();
 
+    // Owncast dates on its own clock: brought to the clock of the container,
+    // or a server a few minutes off would end every live at once.
+    if (status.serverTime !== null) {
+      this.clockOffset = this.now() - status.serverTime;
+    }
+    const shift = (time) => (time === null ? null : time + this.clockOffset);
+    status = {
+      ...status,
+      connectedAt: shift(status.connectedAt),
+      disconnectedAt: shift(status.disconnectedAt),
+    };
     const before = JSON.stringify(this.view());
     this.status = status;
     // Synchronous up to the events: a concurrent read cannot interleave.
@@ -352,6 +376,14 @@ export class OwncastHub {
 
   /**
    * Compare the status with the saved live; queue the scene events.
+   *
+   * Besides the plain cases (offline → live, live → offline for the grace),
+   * a broadcaster can reconnect between two readings: Owncast is live at both,
+   * with a new `lastConnectTime`. The gap is measured from the last reading
+   * that saw the old live (or from its disconnection, when a reading saw it):
+   * shorter than the grace, the same live goes on; longer, the old live ended
+   * and a new one started. Same after a restart of the integration.
+   * @param {object} status the public status, times on the clock of the container
    * @returns {boolean} whether the saved state changed
    */
   transition(status, events) {
@@ -363,13 +395,20 @@ export class OwncastHub {
       this.admin?.online ? (this.admin.sessionPeak ?? 0) : 0,
     );
     const name = this.serverName();
+    const lastOnline = Math.max(this.lastOnlineAt ?? 0, saved.seenOnlineAt ?? 0) || null;
+    if (status.online) {
+      this.lastOnlineAt = now;
+    }
 
-    if (!saved.known) {
-      // First sight: the states, no event.
+    if (!saved.known || saved.url !== this.config.url) {
+      // First sight (or a state file of another server): the states, no event.
       this.saved = {
         known: true,
+        url: this.config.url,
         live: status.online,
         since: status.online ? Math.min(now, status.connectedAt ?? now) : null,
+        connectedAt: status.online ? status.connectedAt : null,
+        seenOnlineAt: status.online ? now : null,
         peak: viewers === null ? null : Math.max(viewers, sessionPeak),
         title: status.title,
         milestones: VIEWER_MILESTONES.filter((m) => viewers !== null && viewers >= m),
@@ -378,12 +417,25 @@ export class OwncastHub {
     }
 
     let dirty = false;
-    if (status.title && status.title !== saved.title) {
-      saved.title = status.title;
-      dirty = true;
-    }
-
     if (status.online) {
+      if (
+        saved.live &&
+        status.connectedAt !== null &&
+        saved.connectedAt != null &&
+        Math.abs(status.connectedAt - saved.connectedAt) > RECONNECT_TOLERANCE_MS
+      ) {
+        const gapStart = saved.offlineSince ?? lastOnline;
+        if (gapStart === null || status.connectedAt - gapStart >= this.timings.endGraceMs) {
+          this.endLive(gapStart ?? status.connectedAt, events, name);
+        }
+        saved.connectedAt = status.connectedAt;
+        dirty = true;
+      }
+      // After the end of a previous live: its title went with it.
+      if (status.title && status.title !== saved.title) {
+        saved.title = status.title;
+        dirty = true;
+      }
       if (saved.offlineSince !== undefined) {
         // Back before the end was confirmed: the same live goes on.
         delete saved.offlineSince;
@@ -392,11 +444,18 @@ export class OwncastHub {
       if (!saved.live) {
         saved.live = true;
         saved.since = Math.min(now, status.connectedAt ?? now);
+        saved.connectedAt = status.connectedAt;
         saved.peak = viewers === null ? null : 0;
         saved.milestones = [];
         dirty = true;
         logger.info(`Live started: ${status.title || '(no title)'}`);
         events.push([TRIGGERS.STARTED, { title: status.title, server: name }]);
+      }
+      // Kept in /data every few minutes only: enough to date an end missed
+      // while the integration was stopped, without a write at every reading.
+      if (now - (saved.seenOnlineAt ?? 0) >= SEEN_ONLINE_EVERY_MS) {
+        saved.seenOnlineAt = now;
+        dirty = true;
       }
       if (viewers !== null) {
         const peak = Math.max(saved.peak ?? 0, viewers, sessionPeak);
@@ -418,15 +477,21 @@ export class OwncastHub {
       return dirty;
     }
 
+    if (status.title && status.title !== saved.title) {
+      saved.title = status.title;
+      dirty = true;
+    }
     if (!saved.live) {
       return dirty;
     }
     // Offline while a live was in progress: over once the grace has passed.
+    // Without a disconnection time (Owncast restarted), the live ended after
+    // the last reading that saw it, not when Owncast answered again.
     const disconnectedAt =
       status.disconnectedAt !== null && status.disconnectedAt >= (saved.since ?? 0)
         ? Math.min(now, status.disconnectedAt)
         : null;
-    const offlineSince = disconnectedAt ?? saved.offlineSince ?? now;
+    const offlineSince = disconnectedAt ?? saved.offlineSince ?? lastOnline ?? now;
     if (saved.offlineSince !== offlineSince) {
       saved.offlineSince = offlineSince;
       dirty = true;
@@ -434,10 +499,14 @@ export class OwncastHub {
     if (now - offlineSince < this.timings.endGraceMs) {
       return dirty;
     }
-    const minutes = Math.max(
-      0,
-      Math.round((offlineSince - (saved.since ?? offlineSince)) / MINUTE),
-    );
+    this.endLive(offlineSince, events, name);
+    return true;
+  }
+
+  /** The live in progress is over at `endAt`: the event, the saved state. */
+  endLive(endAt, events, name) {
+    const saved = this.saved;
+    const minutes = Math.max(0, Math.round((endAt - (saved.since ?? endAt)) / MINUTE));
     saved.live = false;
     saved.lastDuration = minutes;
     delete saved.offlineSince;
@@ -451,7 +520,6 @@ export class OwncastHub {
         server: name,
       },
     ]);
-    return true;
   }
 
   async fire(key, data) {
@@ -695,7 +763,11 @@ export class OwncastHub {
       }
       const parts = [text.ok, this.sentence(language)];
       if (this.client.hasAdmin) {
-        parts.push(text.admin);
+        if (this.adminError) {
+          parts.push(pick(ERROR_TEXT[this.adminError], language));
+        } else if (this.admin) {
+          parts.push(text.admin);
+        }
       }
       message[language] = parts.join(' · ');
     }

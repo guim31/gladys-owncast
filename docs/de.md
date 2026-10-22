@@ -70,8 +70,7 @@ die zwei neuen Funktionen zu aktualisieren.
 | Eingehende Auflösung | Mit Admin-Passwort: die gesendete Auflösung, z. B. 1920×1080 |
 
 Ein Stream endet, wenn Owncast seit einer Minute offline ist: Verbindet sich
-deine Streaming-Software nach einem kurzen Netzausfall neu, geht der Stream
-weiter.
+deine Streaming-Software nach einem kurzen Netzausfall neu, geht der Stream weiter. Eine spätere Neuverbindung, auch zwischen zwei Abfragen, beendet den Stream und startet einen neuen.
 
 ## Dashboard
 
@@ -135,4 +134,6 @@ während Gladys gestoppt war, wird trotzdem gemeldet, einmal.
 - Dauer und Spitze misst die Integration; eine Spitze zwischen zwei Abfragen
   sieht nur der Admin-Status.
 - Gedacht für Owncast 0.1 und neuer; getestet mit 0.3.0.
+- Solange Owncast nicht antwortet, behält das Gerät seinen letzten Zustand; ein inzwischen abgebrochener Stream endet bei der letzten Abfrage, die ihn sah.
+- Verbirgt Owncast die Zuschauer und ist kein Admin-Passwort gesetzt, stehen Zuschauer und Spitze in den Szenen auf 0.
 - Nicht mit dem Owncast-Projekt verbunden.

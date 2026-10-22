@@ -10,8 +10,6 @@ export const BASE = 'http://192.0.2.10:8080';
 export const ADMIN_PASSWORD = 'admin-password-1234';
 export const TOKEN = 'access-token-1234';
 
-const iso = (time) => (time === null ? null : new Date(time).toISOString());
-
 export class FakeOwncast {
   constructor({ now = () => Date.now(), adminPassword = ADMIN_PASSWORD, token = TOKEN } = {}) {
     this.now = now;
@@ -31,16 +29,32 @@ export class FakeOwncast {
     this.bitrate = 4500;
     /** 'down': the server does not answer; a number: that HTTP status. */
     this.failure = null;
+    // How far the clock of Owncast is ahead of ours (negative: behind).
+    this.skewMs = 0;
     this.messages = [];
     this.requests = [];
     this.request = this.request.bind(this);
+  }
+
+  /** A date on the clock of Owncast. */
+  iso(time) {
+    return time === null ? null : new Date(time + this.skewMs).toISOString();
   }
 
   goLive(title = this.title) {
     this.title = title;
     this.online = true;
     this.connectedAt = this.now();
+    this.disconnectedAt = null;
     this.sessionPeak = 0;
+  }
+
+  /** Owncast restarted: no connection time known. */
+  restart() {
+    this.online = false;
+    this.connectedAt = null;
+    this.disconnectedAt = null;
+    this.viewers = 0;
   }
 
   goOffline() {
@@ -58,9 +72,9 @@ export class FakeOwncast {
 
   status() {
     const out = {
-      serverTime: iso(this.now()),
-      lastConnectTime: iso(this.connectedAt),
-      lastDisconnectTime: iso(this.disconnectedAt),
+      serverTime: this.iso(this.now()),
+      lastConnectTime: this.iso(this.connectedAt),
+      lastDisconnectTime: this.iso(this.disconnectedAt),
       versionNumber: '0.3.0',
       streamTitle: this.title,
     };
@@ -75,7 +89,7 @@ export class FakeOwncast {
     return {
       broadcaster: this.online
         ? {
-            time: iso(this.connectedAt),
+            time: this.iso(this.connectedAt),
             remoteAddr: '192.0.2.3:55564',
             streamDetails: {
               videoCodec: 'H.264',

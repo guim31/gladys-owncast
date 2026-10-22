@@ -100,7 +100,7 @@ const clean = (value, max) =>
  * The public status, normalized.
  * @returns {{ online: boolean, title: string, viewers: number|null,
  *   sessionPeak: number|null, connectedAt: number|null,
- *   disconnectedAt: number|null, version: string }}
+ *   disconnectedAt: number|null, serverTime: number|null, version: string }}
  */
 export function normalizeStatus(raw) {
   if (!raw || typeof raw !== 'object' || typeof raw.online !== 'boolean') {
@@ -115,6 +115,8 @@ export function normalizeStatus(raw) {
     sessionPeak: count(raw.sessionMaxViewerCount),
     connectedAt: dateOf(raw.lastConnectTime),
     disconnectedAt: dateOf(raw.lastDisconnectTime),
+    // The clock of Owncast, to date its connection times on ours.
+    serverTime: dateOf(raw.serverTime),
     version: clean(raw.versionNumber, 40),
   };
 }

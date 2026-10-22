@@ -30,6 +30,7 @@ test('the public status: offline, live with viewers, live without (left out at 0
     sessionPeak: null,
     connectedAt: null,
     disconnectedAt: null,
+    serverTime: Date.parse('2026-10-22T00:38:44.166769825Z'),
     version: '0.3.0',
   });
   const live = normalizeStatus(await fixture('status-online'));

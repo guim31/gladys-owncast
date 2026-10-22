@@ -69,7 +69,7 @@ two new features.
 | Incoming resolution | With the admin password: the resolution sent, e.g. 1920×1080 |
 
 A live ends once Owncast has been offline for one minute: when your
-broadcasting software reconnects after a short network cut, the live goes on.
+broadcasting software reconnects after a short network cut, the live goes on. A later reconnection, even between two readings, ends the live and starts a new one.
 
 ## Dashboard
 
@@ -132,4 +132,6 @@ while Gladys was stopped is still announced, once.
 - The duration and the peak are measured by the integration; a peak between
   two readings is caught by the admin status only.
 - Developed for Owncast 0.1 and later; tested on 0.3.0.
+- While Owncast does not answer, the device keeps its last state; a live cut meanwhile ends at the last reading that saw it.
+- When Owncast hides the viewers and the admin password is not set, the viewers and the peak read 0 in the scenes.
 - Not affiliated with the Owncast project.

@@ -74,8 +74,7 @@ propose de mettre l'appareil à jour avec les deux nouvelles fonctionnalités.
 | Résolution entrante | Avec le mot de passe d'administration : la résolution, ex. 1920×1080  |
 
 Un direct se termine quand Owncast est hors ligne depuis une minute : si votre
-logiciel de diffusion se reconnecte après une courte coupure réseau, le direct
-continue.
+logiciel de diffusion se reconnecte après une courte coupure réseau, le direct continue. Une reconnexion plus tardive, même entre deux lectures, termine le direct et en commence un nouveau.
 
 ## Tableau de bord
 
@@ -141,4 +140,6 @@ terminé pendant que Gladys était arrêtée est quand même annoncé, une fois.
 - La durée et le pic sont mesurés par l'intégration ; un pic entre deux
   lectures n'est vu que par le statut d'administration.
 - Prévue pour Owncast 0.1 et plus récent ; testée sur la 0.3.0.
+- Tant qu'Owncast ne répond pas, l'appareil garde son dernier état ; un direct coupé entre-temps se termine à la dernière lecture qui l'a vu.
+- Quand Owncast masque les spectateurs et sans mot de passe d'administration, les spectateurs et le pic valent 0 dans les scènes.
 - Sans lien avec le projet Owncast.

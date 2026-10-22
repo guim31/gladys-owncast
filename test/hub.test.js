@@ -154,6 +154,85 @@ test('a broadcaster that reconnects within the minute neither ends nor restarts 
   assert.equal(state(world, FEATURE_KEYS.LIVE_DURATION), 20, 'counted from the first start');
 });
 
+test('a live that stops and a new one that starts between two readings: both announced', async (t) => {
+  const world = await liveWorld(t);
+  world.owncast.setViewers(20);
+  world.clock.advance(30 * MINUTE);
+  await world.hub.pollNow();
+  world.clock.advance(10_000);
+  world.owncast.goOffline();
+  world.clock.advance(90_000);
+  world.owncast.goLive('Second part');
+  world.owncast.setViewers(1);
+  world.clock.advance(20_000);
+  await world.hub.pollNow();
+  assert.deepEqual(
+    world.fake.sceneEvents.slice(-3).map((event) => [event.key, event.data.title]),
+    [
+      [TRIGGERS.ENDED, 'Saturday build'],
+      [TRIGGERS.STARTED, 'Second part'],
+      [TRIGGERS.VIEWERS, 'Second part'],
+    ],
+  );
+  const ended = events(world, TRIGGERS.ENDED)[0].data;
+  assert.equal(ended.duration_minutes, 30, 'up to the last reading that saw it');
+  assert.equal(ended.peak_viewers, 20);
+  assert.equal(state(world, FEATURE_KEYS.LIVE_DURATION), 0);
+  assert.equal(state(world, FEATURE_KEYS.PEAK_VIEWERS), 1, 'a new peak for the new live');
+});
+
+test('a new live started while the integration was stopped: the old one ends, the new one starts', async (t) => {
+  const clock = createClock();
+  const owncast = new FakeOwncast({ now: clock.now });
+  const first = await createWorld({ clock, owncast });
+  owncast.goLive('Old');
+  await first.hub.pollNow();
+  owncast.setViewers(30);
+  await first.hub.pollNow();
+  await first.app.stop();
+  clock.advance(60 * MINUTE);
+  owncast.goOffline();
+  clock.advance(5 * 60 * MINUTE);
+  owncast.goLive('New');
+  owncast.setViewers(2);
+  clock.advance(10 * MINUTE);
+  const second = await createWorld({ clock, owncast, dataDir: first.dataDir });
+  t.after(() => second.app.stop());
+  await createDevice(second);
+  assert.deepEqual(
+    second.fake.sceneEvents.map((event) => [event.key, event.data.title]),
+    [
+      [TRIGGERS.ENDED, 'Old'],
+      [TRIGGERS.STARTED, 'New'],
+      [TRIGGERS.VIEWERS, 'New'],
+    ],
+  );
+  assert.equal(state(second, FEATURE_KEYS.LIVE_DURATION), 10);
+  assert.equal(state(second, FEATURE_KEYS.PEAK_VIEWERS), 2);
+});
+
+test('the clock of Owncast minutes off: a short reconnection stays a reconnection', async (t) => {
+  const clock = createClock();
+  const owncast = new FakeOwncast({ now: clock.now });
+  owncast.skewMs = -3 * MINUTE;
+  const world = await createWorld({ clock, owncast });
+  t.after(() => world.app.stop());
+  await createDevice(world);
+  owncast.goLive('Skewed');
+  await world.hub.pollNow();
+  clock.advance(20 * MINUTE);
+  await world.hub.pollNow();
+  assert.equal(state(world, FEATURE_KEYS.LIVE_DURATION), 20);
+  owncast.goOffline();
+  clock.advance(10_000);
+  await world.hub.pollNow();
+  owncast.goLive();
+  clock.advance(10_000);
+  await world.hub.pollNow();
+  assert.equal(events(world, TRIGGERS.ENDED).length, 0);
+  assert.equal(events(world, TRIGGERS.STARTED).length, 1);
+});
+
 test('"Viewers reach a threshold": each milestone once per live, the next live again', async (t) => {
   const world = await liveWorld(t);
   world.owncast.setViewers(1);
@@ -331,6 +410,22 @@ test('Owncast unreachable: status, badge, one warning, no event', async (t) => {
   await world.hub.pollNow();
   assert.equal(world.fake.connectionStatus.connected, true);
   assert.equal(world.fake.transports.at(-1).transport, 'local');
+});
+
+test('Owncast down for hours then restarted: the live ends at the last reading that saw it', async (t) => {
+  const world = await liveWorld(t);
+  world.clock.advance(30 * MINUTE);
+  await world.hub.pollNow();
+  world.owncast.failure = 'down';
+  world.clock.advance(120 * MINUTE);
+  await world.hub.pollNow();
+  world.owncast.failure = null;
+  world.owncast.restart();
+  await world.hub.pollNow();
+  assert.deepEqual(
+    events(world, TRIGGERS.ENDED).map((event) => event.data.duration_minutes),
+    [30],
+  );
 });
 
 test('no address, a wrong address, a public address', async (t) => {
@@ -518,6 +613,9 @@ test('"Test the connection" reads Owncast and reports in the four languages', as
   );
   assert.deepEqual(Object.keys(ack.data.message), ['en', 'fr', 'de', 'es']);
 
+  world.owncast.adminPassword = 'changed';
+  const refused = await world.fake.action('test_connection', {});
+  assert.match(refused.data.message.en, /admin password refused/);
   world.owncast.failure = 'down';
   const down = await world.fake.action('test_connection', {});
   assert.equal(down.data.message.fr, 'Owncast ne répond pas');

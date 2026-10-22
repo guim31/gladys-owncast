@@ -70,7 +70,7 @@ propone actualizar el dispositivo con las dos nuevas funciones.
 | Resolución entrante   | Con la contraseña de administración: la resolución, p. ej. 1920×1080 |
 
 Un directo termina cuando Owncast lleva un minuto sin conexión: si su programa
-de emisión se reconecta tras un breve corte de red, el directo continúa.
+de emisión se reconecta tras un breve corte de red, el directo continúa. Una reconexión más tardía, incluso entre dos lecturas, termina el directo y empieza uno nuevo.
 
 ## Panel
 
@@ -137,4 +137,6 @@ Gladys estaba parada se anuncia igualmente, una vez.
 - La duración y el pico los mide la integración; un pico entre dos lecturas
   solo lo ve el estado de administración.
 - Pensada para Owncast 0.1 y posteriores; probada con la 0.3.0.
+- Mientras Owncast no responde, el dispositivo conserva su último estado; un directo cortado entretanto termina en la última lectura que lo vio.
+- Cuando Owncast oculta los espectadores y no hay contraseña de administración, los espectadores y el pico valen 0 en las escenas.
 - Sin relación con el proyecto Owncast.
