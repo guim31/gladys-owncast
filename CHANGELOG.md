@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-22
+
 ### Added
 
 - The Owncast server as a Gladys device: live or not, viewers, peak viewers,
@@ -23,4 +25,5 @@ the notes of the version's GitHub Release.
 - The "Owncast stream" dashboard widget.
 - Texts and documentation in English, French, German and Spanish.
 
-[Unreleased]: https://github.com/guim31/gladys-owncast/commits/main
+[Unreleased]: https://github.com/guim31/gladys-owncast/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/guim31/gladys-owncast/releases/tag/v1.0.0
