@@ -30,6 +30,17 @@ Gladys before reporting a problem.
 
 In scope: the code of this repository and the Docker image it publishes.
 
+What the integration stores and sends:
+
+- `/data/owncast-state.json` holds the live in progress (since when, its peak,
+  the viewer thresholds reached, the last title). No secret is written there.
+- The admin password and the access token live in the Gladys configuration of
+  the integration. They are sent only to the Owncast address configured — the
+  password on `/api/admin/status`, the token on
+  `/api/integrations/chat/system` — never logged, and redirects are not
+  followed, so they never reach another host.
+- The container only talks to that Owncast server and to Gladys.
+
 Out of scope: Gladys Assistant itself (see its
 [security policy](https://github.com/GladysAssistant/Gladys/security/policy)),
-and the third-party services and devices the integration talks to.
+and the Owncast server the integration talks to.

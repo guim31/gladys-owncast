@@ -1,0 +1,37 @@
+{
+  "appearanceVariables": {},
+  "name": "New Owncast Server",
+  "customStyles": "",
+  "pluginStyles": "",
+  "streamTitle": "Morning test stream",
+  "offlineMessage": "",
+  "logo": "/logo",
+  "version": "Owncast v0.3.0-linux-64bit (4b09a1b11693977400fb6f6cb06a7b9891bdca6d)",
+  "extraPageContent": "<h1>Welcome to Owncast!</h1>\n<ul>\n<li>\n<p>This is a live stream powered by <a href=\"https://owncast.online\">Owncast</a>, a free and open source live streaming server.</p>\n</li>\n<li>\n<p>To discover more examples of streams, visit <a href=\"https://owncast.directory\">Owncast's directory</a>.</p>\n</li>\n<li>\n<p>If you're the owner of this server you should visit the admin and customize the content on this page.</p>\n</li>\n</ul>\n<hr/>\n<video id=\"video\" controls preload=\"metadata\" style=\"width: 60vw; max-width: 600px; min-width: 200px;\" poster=\"https://videos.owncast.online/t/xaJ3xNn9Y6pWTdB25m9ai3\">\n  <source src=\"https://assets.owncast.tv/video/owncast-embed.mp4\" type=\"video/mp4\" />\n</video>",
+  "summary": "This is a new live video streaming server powered by Owncast.",
+  "tags": ["owncast", "streaming"],
+  "socialHandles": [
+    {
+      "platform": "github",
+      "url": "https://github.com/owncast/owncast",
+      "icon": "/img/platformlogos/github.svg"
+    }
+  ],
+  "externalActions": [],
+  "pluginTabs": [],
+  "notifications": {
+    "browser": {
+      "publicKey": "BExamplePublicKeyNotARealKey000000000000000000000000000000000000000000000000000000000",
+      "enabled": true
+    }
+  },
+  "federation": { "enabled": false, "hideFollowersTab": false },
+  "maxSocketPayloadSize": 2048,
+  "hideViewerCount": false,
+  "chatDisabled": false,
+  "chatSpamProtectionDisabled": true,
+  "chatRequireAuthentication": false,
+  "nsfw": false,
+  "autoplay": "off",
+  "authentication": { "indieAuthEnabled": false }
+}

@@ -16,8 +16,8 @@ its only runtime dependency. It started from the official JavaScript template.
 ```bash
 npm install
 npm test                                  # node --test, the built-in runner
-node --test test/devices.test.js          # one file
-node --test --test-name-pattern "plug"    # tests whose name matches
+node --test test/hub.test.js              # one file
+node --test --test-name-pattern "live"    # tests whose name matches
 npm run lint                              # ESLint
 npm run format:check                      # Prettier, as the CI runs it
 npm run format                            # Prettier, fix in place
@@ -31,16 +31,20 @@ pushing.
 ## Architecture
 
 ```
-index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
+index.js                          SDK wiring only: src/app.js registers the handlers before connect()
+src/app.js                        every SDK handler -> the hub (also used by the tests)
+src/hub.js                        reading timer, live start/end (grace), milestones -> scene events, views
+src/devices.js                    the server device: features, names, values
+src/owncast/client.js             Owncast HTTP API (fetch), errors by kind, normalization
 src/scenes.js                     scene action handlers (manifest `scene_actions`)
-src/widgets.js                    dashboard widget handlers (manifest `widgets`)
-src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
+src/widgets.js                    dashboard widget `stream` (manifest `widgets`)
+src/texts.js                      connection, error, state, report and action texts (4 languages)
+src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults), address, local/cloud
+src/store.js, src/problems.js     /data/owncast-state.json; one log line per repeated failure
 gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
+docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys (en and fr mandatory)
 test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+                                  and helpers/fakeOwncast.js (checked against test/fixtures/owncast)
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 
@@ -70,8 +74,10 @@ test/                             node --test, against the SDK's fake Gladys (in
   `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
   code (defaults, action, scene and widget handlers): change both sides
   together.
-- **User-facing text** is bilingual (English and French): action messages,
-  manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
+- **User-facing text** exists in English, French, German and Spanish: action
+  messages, widget content, feature names, scene outputs, manifest texts, and
+  `docs/en.md`, `docs/fr.md`, `docs/de.md`, `docs/es.md`, kept in sync
+  (`test/i18n.test.js` checks the languages and the doc sections).
 - **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,
   in English. Tests never touch the network.
 
@@ -197,6 +203,50 @@ code de ce dépôt. Compléter ce fichier quand un nouveau piège est découvert
 - Les filtres de scène ne font qu'égalité et appartenance : un seuil reste le travail d'un capteur.
 - **Les clés de widgets, de déclencheurs et d'actions sont figées une fois publiées.**
 - `gladys_version` `>=5.1.0` dès qu'il y a widgets, déclencheurs ou actions de scène.
+
+## Owncast (propre à ce dépôt)
+
+- **API** (vérifiée sur l'image `owncast/owncast:latest` = 0.3.0 du 22/10/2026, flux de test
+  ffmpeg, réponses dans `test/fixtures/owncast`) : `GET /api/status` public (`online`,
+  `streamTitle`, `lastConnectTime`, `lastDisconnectTime`, `viewerCount`, `versionNumber`) ;
+  `GET /api/config` public (`name`, `summary`, `tags`, `hideViewerCount`) ;
+  `GET /api/admin/status` en Basic `admin` + mot de passe d'administration (0.1+ : ce n'est plus
+  la clé de diffusion) ; `POST /api/integrations/chat/system` `{ body }` en `Bearer` avec un jeton
+  d'accès au droit `CAN_SEND_SYSTEM_MESSAGES` (401 sinon, sans corps utile).
+- **`viewerCount` est `omitempty`** : absent de `/api/status` à 0 spectateur **et** quand
+  `hideViewerCount` est vrai. On les distingue par `/api/config` ; masqué sans mot de passe
+  d'administration, les spectateurs ne sont pas publiés (inconnus, pas 0).
+- **Le statut public de la 0.3 n'a plus de pic** (`overallMaxViewerCount`,
+  `sessionMaxViewerCount` ont disparu, seul l'admin a `sessionPeakViewerCount`) : le pic du direct
+  est mesuré par l'intégration à chaque lecture, complété par celui de l'admin.
+- **`lastConnectTime` repasse à `null` dès la fin du direct** : la durée d'un direct terminé se
+  calcule avec le début mémorisé (dans `/data`), jamais avec la réponse d'Owncast.
+- **Fin de direct** : confirmée après 60 s hors ligne (`endGraceMs`), mesurée depuis
+  `lastDisconnectTime` ; un logiciel de diffusion qui se reconnecte avant ne termine pas le direct
+  et n'en recommence pas un.
+- **Reconnexion entre deux lectures** : Owncast est en ligne aux deux lectures avec un nouveau
+  `lastConnectTime` (et `lastDisconnectTime` repasse à `null` dès la connexion, vérifié dans le
+  code d'Owncast, `services/stream/stream.go`). L'écart se mesure depuis la dernière lecture qui a
+  vu l'ancien direct (`lastOnlineAt` en mémoire, `seenOnlineAt` écrit dans `/data` toutes les
+  5 min) : au-delà de la grâce, fin de l'ancien direct puis début du nouveau. Même règle au
+  redémarrage de l'intégration.
+- **Horloges** : les dates d'Owncast sont ramenées à l'horloge du conteneur par `serverTime`
+  (sinon un serveur décalé de quelques minutes termine chaque direct à la première coupure).
+- **Owncast injoignable** : l'appareil garde son dernier état ; s'il revient hors ligne sans
+  `lastDisconnectTime` (redémarré), la fin du direct est datée de la dernière lecture qui l'a vu.
+- **Seuil de spectateurs** : les filtres de scène ne font qu'égalité, donc le déclencheur
+  `viewers_reached` émet un événement par palier franchi (`VIEWER_MILESTONES`, une fois par
+  direct) et le filtre `threshold` (select requis) choisit le palier. Changer la liste des paliers
+  change les options du manifeste (test).
+- **Identifiant de l'appareil** : `server:main`, indépendant de l'adresse (une nouvelle IP garde
+  l'appareil). Changer d'adresse vide l'état sauvegardé (un autre serveur).
+- **Badge** local ou cloud d'après l'adresse (IP privée, CGNAT, `.local`, nom sans point,
+  plages de documentation RFC 5737 → local ; le reste → cloud).
+- **Fonctionnalités admin** (débit, résolution) ajoutées seulement avec le mot de passe :
+  l'onglet Découverte propose alors « Mettre à jour ».
+- Une session de test complète : `docker network create gladys-test-owncast`, `owncast/owncast`
+  (mot de passe admin et clé de diffusion par défaut `abc123`), puis
+  `linuxserver/ffmpeg -re -f lavfi -i testsrc … -f flv rtmp://owncast:1935/live/abc123`.
 
 ## Store
 
