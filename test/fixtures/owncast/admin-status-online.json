@@ -1,0 +1,37 @@
+{
+  "broadcaster": {
+    "time": "2026-10-22T00:39:22.128699776Z",
+    "remoteAddr": "192.0.2.3:55564",
+    "streamDetails": {
+      "videoCodec": "H.264",
+      "audioCodec": "AAC",
+      "encoder": "Lavf63.1.102",
+      "width": 640,
+      "height": 360,
+      "videoBitrate": 585,
+      "audioBitrate": 62,
+      "framerate": 25
+    }
+  },
+  "currentBroadcast": {
+    "outputSettings": [
+      {
+        "name": "",
+        "videoPassthrough": false,
+        "audioPassthrough": true,
+        "videoBitrate": 1200,
+        "audioBitrate": 0,
+        "cpuUsageLevel": 2,
+        "framerate": 24
+      }
+    ],
+    "latencyLevel": { "level": 2 }
+  },
+  "health": null,
+  "streamTitle": "Morning test stream",
+  "versionNumber": "0.3.0",
+  "viewerCount": 4,
+  "overallPeakViewerCount": 4,
+  "sessionPeakViewerCount": 4,
+  "online": true
+}

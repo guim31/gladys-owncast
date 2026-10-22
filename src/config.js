@@ -1,45 +1,123 @@
 // -----------------------------------------------------------------------------
-// Integration configuration.
+// Integration configuration: defaults (they mirror the `default` values of the
+// manifest `config_schema`, see test/manifest.test.js) and normalization, so
+// the rest of the code never deals with strings, blanks or `undefined`.
 //
-// The configuration is filled in by the user in Gladys, from the `config_schema`
-// declared in `gladys-assistant-integration.json`. The SDK fetches it for you
-// (`gladys.getConfig()`) and notifies you of every change through
-// `gladys.onConfigUpdated()`.
-//
-// This module only provides defaults and normalizes the received object, so the
-// rest of the code never has to deal with `undefined`.
+// One Owncast server: its address, the optional admin password (incoming
+// bitrate and resolution, viewers even when hidden), the optional access token
+// of an Owncast integration (chat messages), how often it is read, and the
+// language of the names and messages.
 // -----------------------------------------------------------------------------
 
-// Defaults: they MUST stay consistent with the `default` values declared in the
-// `config_schema` of the manifest.
+export const LANGUAGES = ['en', 'fr', 'de', 'es'];
+
+// Refresh intervals offered in the configuration, in seconds.
+export const POLL_INTERVALS = ['15', '30', '60', '120'];
+
 export const DEFAULT_CONFIG = {
-  latitude: 48.8566, // Paris
-  longitude: 2.3522,
-  unit: 'celsius', // 'celsius' | 'fahrenheit'
-  // Seconds between two reads of the polled sensors. Gladys polls at most once
-  // a minute: slower intervals are applied by skipping polls (see
-  // createPoller in src/devices/index.js).
-  poll_frequency: 300,
-  // Reserved key (NOT in config_schema): because the manifest declares both
-  // 'local' and 'cloud' in its `transports` field, Gladys shows a standard
-  // "Prefer the local connection" toggle and sends the user's choice here.
-  // Read-only for the integration; defaults to true.
-  GLADYS_PREFER_LOCAL: true,
+  url: '',
+  admin_password: '',
+  access_token: '',
+  poll_interval: '30',
+  language: 'fr',
 };
 
+// Pages of the Owncast interface: a URL copied from the browser points at one
+// of them, the API lives at the root.
+const INTERFACE_PATH = /\/(admin|embed|api|hls)(\/.*)?$/i;
+
 /**
- * Merge the user config with the defaults.
- * @param {Record<string, unknown>} raw config returned by the SDK
+ * Parse the address typed by the user into a base URL: a bare host or IP
+ * (`192.0.2.10:8080`), or a URL copied from the browser
+ * (`https://live.example.org/admin/`). HTTP by default for a bare host. A path
+ * is kept (Owncast behind a reverse proxy sub-path), the interface pages
+ * dropped.
+ * @param {unknown} raw
+ * @returns {string|null} `http(s)://host[:port][/path]`, null when unusable
+ */
+export function parseServerUrl(raw) {
+  if (typeof raw !== 'string') {
+    return null;
+  }
+  const text = raw.trim();
+  if (!text) {
+    return null;
+  }
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(text) ? text : `http://${text}`;
+  let url;
+  try {
+    url = new URL(withScheme);
+  } catch {
+    return null;
+  }
+  if (!['http:', 'https:'].includes(url.protocol) || !url.hostname) {
+    return null;
+  }
+  // Credentials in the address would end up in the logs: they have their fields.
+  if (url.username || url.password) {
+    return null;
+  }
+  const path = url.pathname.replace(INTERFACE_PATH, '').replace(/\/+$/, '');
+  return `${url.origin}${path}`;
+}
+
+/** Host part shown to the user (no scheme). */
+export const hostOf = (url) => url.replace(/^https?:\/\//, '');
+
+/**
+ * Whether the address points to the local network (private or link-local IP,
+ * `localhost`, a `.local`, `.lan` or `.home.arpa` name, a bare name): the
+ * device badge says "local", else "cloud".
+ */
+export function isLocalAddress(url) {
+  let hostname;
+  try {
+    hostname = new URL(url).hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  } catch {
+    return false;
+  }
+  if (!hostname.includes('.') && !hostname.includes(':')) {
+    return true; // a bare name: resolved on the local network
+  }
+  if (/\.(local|lan|home|internal|home\.arpa)$/.test(hostname) || hostname === 'localhost') {
+    return true;
+  }
+  const v4 = hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])];
+    return (
+      a === 10 ||
+      a === 127 ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 169 && b === 254) ||
+      (a === 100 && b >= 64 && b <= 127) || // CGNAT, also Tailscale
+      // The documentation ranges (RFC 5737) are not routed either.
+      (a === 192 && b === 0 && Number(v4[3]) === 2) ||
+      (a === 198 && b === 51 && Number(v4[3]) === 100) ||
+      (a === 203 && b === 0 && Number(v4[3]) === 113)
+    );
+  }
+  return /^(::1|f[cd][0-9a-f]{2}:|fe80:)/.test(hostname);
+}
+
+/**
+ * @param {Record<string, unknown>} raw the configuration returned by the SDK
  */
 export function normalizeConfig(raw = {}) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const text = (key) => (typeof source[key] === 'string' ? source[key].trim() : '');
+  const choice = (key, options) =>
+    options.includes(String(source[key])) ? String(source[key]) : DEFAULT_CONFIG[key];
+  const typed = text('url');
   return {
-    ...DEFAULT_CONFIG,
-    ...raw,
-    // Force the types: config may arrive as strings from a form.
-    latitude: Number(raw.latitude ?? DEFAULT_CONFIG.latitude),
-    longitude: Number(raw.longitude ?? DEFAULT_CONFIG.longitude),
-    poll_frequency: Number(raw.poll_frequency ?? DEFAULT_CONFIG.poll_frequency),
-    // The preference is a boolean; anything but an explicit false means true.
-    GLADYS_PREFER_LOCAL: raw.GLADYS_PREFER_LOCAL !== false,
+    // Empty: not configured yet; null: typed but not understood.
+    url: typed ? parseServerUrl(typed) : '',
+    // A password may start or end with a space: kept as typed.
+    adminPassword: typeof source.admin_password === 'string' ? source.admin_password : '',
+    // A pasted token often carries a trailing space or new line.
+    accessToken: text('access_token'),
+    pollIntervalMs: Number(choice('poll_interval', POLL_INTERVALS)) * 1000,
+    language: LANGUAGES.includes(source.language) ? source.language : DEFAULT_CONFIG.language,
   };
 }

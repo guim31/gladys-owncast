@@ -1,177 +1,630 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "Owncast",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "Your Owncast live stream in Gladys: live or not, viewers, title, and scenes when it starts or ends.",
+    "fr": "Votre direct Owncast dans Gladys : état, spectateurs, titre, et scènes au début et à la fin.",
+    "de": "Dein Owncast-Stream in Gladys: live oder nicht, Zuschauer, Titel und Szenen bei Start und Ende.",
+    "es": "Su directo Owncast en Gladys: en directo o no, espectadores, título y escenas al empezar o acabar."
   },
   "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "docker_image": "ghcr.io/guim31/gladys-owncast:1.0.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
+  "cover_image": "https://raw.githubusercontent.com/guim31/gladys-owncast/main/cover.png",
+  "categories": ["multimedia"],
   "transports": ["local", "cloud"],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Your Owncast",
+        "fr": "Votre Owncast",
+        "de": "Dein Owncast",
+        "es": "Su Owncast"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "Enter the address of your Owncast server (the page your viewers open). Then add the device from the Discover tab. The admin password and the access token are optional.",
+        "fr": "Saisissez l'adresse de votre serveur Owncast (la page qu'ouvrent vos spectateurs). Ajoutez ensuite l'appareil depuis l'onglet Découverte. Le mot de passe d'administration et le jeton d'accès sont facultatifs.",
+        "de": "Gib die Adresse deines Owncast-Servers ein (die Seite, die deine Zuschauer öffnen). Lege dann das Gerät im Tab „Entdecken“ an. Admin-Passwort und Zugriffstoken sind optional.",
+        "es": "Introduzca la dirección de su servidor Owncast (la página que abren sus espectadores). Después añada el dispositivo desde la pestaña Descubrir. La contraseña de administración y el token de acceso son opcionales."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://github.com/guim31/gladys-owncast/blob/main/docs/en.md",
+          "label": {
+            "en": "Setup guide",
+            "fr": "Guide d'installation",
+            "de": "Einrichtungsanleitung",
+            "es": "Guía de instalación"
+          }
+        },
+        {
+          "url": "https://owncast.online/thirdparty/apis/",
+          "label": {
+            "en": "Owncast API",
+            "fr": "API d'Owncast",
+            "de": "Owncast-API",
+            "es": "API de Owncast"
+          }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
+      "key": "url",
+      "type": "string",
+      "label": {
+        "en": "Owncast address",
+        "fr": "Adresse d'Owncast",
+        "de": "Owncast-Adresse",
+        "es": "Dirección de Owncast"
       },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
-      "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
+      "description": {
+        "en": "Address of the Owncast web page, with its port (8080 by default).",
+        "fr": "Adresse de la page web d'Owncast, avec son port (8080 par défaut).",
+        "de": "Adresse der Owncast-Webseite, mit Port (standardmäßig 8080).",
+        "es": "Dirección de la página web de Owncast, con su puerto (8080 por defecto)."
+      },
+      "placeholder": {
+        "en": "e.g. http://192.168.1.2:8080",
+        "fr": "ex. http://192.168.1.2:8080",
+        "de": "z. B. http://192.168.1.2:8080",
+        "es": "p. ej. http://192.168.1.2:8080"
+      },
+      "required": true
     },
     {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
-      "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
+      "key": "admin_password",
+      "type": "secret",
+      "label": {
+        "en": "Admin password (optional)",
+        "fr": "Mot de passe d'administration (facultatif)",
+        "de": "Admin-Passwort (optional)",
+        "es": "Contraseña de administración (opcional)"
       },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
+      "description": {
+        "en": "The password of the Owncast admin (user admin): adds the incoming bitrate and resolution, and the viewers even when hidden.",
+        "fr": "Le mot de passe de l'administration d'Owncast (utilisateur admin) : ajoute le débit et la résolution entrants, et les spectateurs même masqués.",
+        "de": "Das Passwort der Owncast-Verwaltung (Benutzer admin): ergänzt eingehende Bitrate und Auflösung sowie die Zuschauer, auch wenn verborgen.",
+        "es": "La contraseña de la administración de Owncast (usuario admin): añade la tasa de bits y la resolución entrantes, y los espectadores aunque estén ocultos."
+      },
+      "required": false
     },
     {
-      "key": "unit",
+      "key": "access_token",
+      "type": "secret",
+      "label": {
+        "en": "Access token (optional)",
+        "fr": "Jeton d'accès (facultatif)",
+        "de": "Zugriffstoken (optional)",
+        "es": "Token de acceso (opcional)"
+      },
+      "description": {
+        "en": "For the scene action that writes in the chat: create it in Owncast, Admin → Integrations → Access Tokens, with the right to send system messages.",
+        "fr": "Pour l'action de scène qui écrit dans le chat : créez-le dans Owncast, Admin → Integrations → Access Tokens, avec le droit d'envoyer des messages système.",
+        "de": "Für die Szenenaktion, die in den Chat schreibt: Erstelle es in Owncast unter Admin → Integrations → Access Tokens, mit dem Recht, Systemnachrichten zu senden.",
+        "es": "Para la acción de escena que escribe en el chat: créelo en Owncast, Admin → Integrations → Access Tokens, con el permiso de enviar mensajes del sistema."
+      },
+      "required": false
+    },
+    {
+      "key": "options",
+      "type": "section",
+      "label": {
+        "en": "Options",
+        "fr": "Options",
+        "de": "Optionen",
+        "es": "Opciones"
+      }
+    },
+    {
+      "key": "poll_interval",
       "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
+      "label": {
+        "en": "Refresh interval",
+        "fr": "Intervalle de rafraîchissement",
+        "de": "Aktualisierungsintervall",
+        "es": "Intervalo de actualización"
+      },
+      "description": {
+        "en": "How often Owncast is read: one light request each time (two with the admin password).",
+        "fr": "À quelle fréquence Owncast est lu : une requête légère à chaque fois (deux avec le mot de passe d'administration).",
+        "de": "Wie oft Owncast gelesen wird: jedes Mal eine leichte Anfrage (zwei mit dem Admin-Passwort).",
+        "es": "Con qué frecuencia se lee Owncast: una petición ligera cada vez (dos con la contraseña de administración)."
+      },
       "required": false,
-      "default": "celsius",
+      "default": "30",
       "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
+        {
+          "value": "15",
+          "label": {
+            "en": "15 seconds",
+            "fr": "15 secondes",
+            "de": "15 Sekunden",
+            "es": "15 segundos"
+          }
+        },
+        {
+          "value": "30",
+          "label": {
+            "en": "30 seconds",
+            "fr": "30 secondes",
+            "de": "30 Sekunden",
+            "es": "30 segundos"
+          }
+        },
+        {
+          "value": "60",
+          "label": {
+            "en": "1 minute",
+            "fr": "1 minute",
+            "de": "1 Minute",
+            "es": "1 minuto"
+          }
+        },
+        {
+          "value": "120",
+          "label": {
+            "en": "2 minutes",
+            "fr": "2 minutes",
+            "de": "2 Minuten",
+            "es": "2 minutos"
+          }
+        }
       ]
     },
     {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
+      "key": "language",
+      "type": "select",
+      "label": {
+        "en": "Language of the names",
+        "fr": "Langue des noms",
+        "de": "Sprache der Namen",
+        "es": "Idioma de los nombres"
+      },
       "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+        "en": "Language of the feature names (set when the device is added) and of the scene results.",
+        "fr": "Langue des noms des fonctionnalités (fixés à l'ajout de l'appareil) et des résultats de scène.",
+        "de": "Sprache der Funktionsnamen (beim Anlegen des Geräts festgelegt) und der Szenen-Ergebnisse.",
+        "es": "Idioma de los nombres de las funciones (fijados al añadir el dispositivo) y de los resultados de escena."
       },
       "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "default": "fr",
+      "options": [
+        {
+          "value": "en",
+          "label": {
+            "en": "English",
+            "fr": "Anglais",
+            "de": "Englisch",
+            "es": "Inglés"
+          }
+        },
+        {
+          "value": "fr",
+          "label": {
+            "en": "French",
+            "fr": "Français",
+            "de": "Französisch",
+            "es": "Francés"
+          }
+        },
+        {
+          "value": "de",
+          "label": {
+            "en": "German",
+            "fr": "Allemand",
+            "de": "Deutsch",
+            "es": "Alemán"
+          }
+        },
+        {
+          "value": "es",
+          "label": {
+            "en": "Spanish",
+            "fr": "Espagnol",
+            "de": "Spanisch",
+            "es": "Español"
+          }
+        }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
+      "key": "test_connection",
+      "label": {
+        "en": "Test the connection",
+        "fr": "Tester la connexion",
+        "de": "Verbindung testen",
+        "es": "Probar la conexión"
+      },
       "timeout_seconds": 30
-    },
-    {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ]
     }
   ],
   "scene_triggers": [
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
+      "key": "stream_started",
+      "label": {
+        "en": "A live starts",
+        "fr": "Un direct commence",
+        "de": "Ein Stream startet",
+        "es": "Empieza un directo"
+      },
       "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+        "en": "Owncast goes live: the broadcasting software has connected.",
+        "fr": "Owncast passe en direct : le logiciel de diffusion s'est connecté.",
+        "de": "Owncast geht live: Die Streaming-Software hat sich verbunden.",
+        "es": "Owncast pasa a directo: el programa de emisión se ha conectado."
+      },
+      "variables": [
+        {
+          "key": "title",
+          "type": "string",
+          "label": {
+            "en": "Stream title",
+            "fr": "Titre du direct",
+            "de": "Titel des Streams",
+            "es": "Título del directo"
+          }
+        },
+        {
+          "key": "server",
+          "type": "string",
+          "label": {
+            "en": "Server name",
+            "fr": "Nom du serveur",
+            "de": "Name des Servers",
+            "es": "Nombre del servidor"
+          }
+        }
+      ]
+    },
+    {
+      "key": "stream_ended",
+      "label": {
+        "en": "A live ends",
+        "fr": "Un direct se termine",
+        "de": "Ein Stream endet",
+        "es": "Termina un directo"
+      },
+      "description": {
+        "en": "Owncast has been offline for a minute: the live is over, with its length and peak of viewers.",
+        "fr": "Owncast est hors ligne depuis une minute : le direct est fini, avec sa durée et son pic de spectateurs.",
+        "de": "Owncast ist seit einer Minute offline: Der Stream ist vorbei, mit Dauer und Zuschauerspitze.",
+        "es": "Owncast lleva un minuto sin conexión: el directo ha terminado, con su duración y su pico de espectadores."
+      },
+      "variables": [
+        {
+          "key": "title",
+          "type": "string",
+          "label": {
+            "en": "Stream title",
+            "fr": "Titre du direct",
+            "de": "Titel des Streams",
+            "es": "Título del directo"
+          }
+        },
+        {
+          "key": "duration_minutes",
+          "type": "number",
+          "label": {
+            "en": "Duration (minutes)",
+            "fr": "Durée (minutes)",
+            "de": "Dauer (Minuten)",
+            "es": "Duración (minutos)"
+          }
+        },
+        {
+          "key": "peak_viewers",
+          "type": "number",
+          "label": {
+            "en": "Peak viewers",
+            "fr": "Pic de spectateurs",
+            "de": "Zuschauerspitze",
+            "es": "Pico de espectadores"
+          }
+        },
+        {
+          "key": "server",
+          "type": "string",
+          "label": {
+            "en": "Server name",
+            "fr": "Nom du serveur",
+            "de": "Name des Servers",
+            "es": "Nombre del servidor"
+          }
+        }
+      ]
+    },
+    {
+      "key": "viewers_reached",
+      "label": {
+        "en": "Viewers reach a threshold",
+        "fr": "Les spectateurs atteignent un seuil",
+        "de": "Zuschauer erreichen eine Schwelle",
+        "es": "Los espectadores alcanzan un umbral"
+      },
+      "description": {
+        "en": "The number of viewers reaches the chosen threshold, once per live.",
+        "fr": "Le nombre de spectateurs atteint le seuil choisi, une fois par direct.",
+        "de": "Die Zuschauerzahl erreicht die gewählte Schwelle, einmal pro Stream.",
+        "es": "El número de espectadores alcanza el umbral elegido, una vez por directo."
       },
       "fields": [
         {
-          "key": "device",
+          "key": "threshold",
           "type": "select",
-          "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
-        },
-        {
-          "key": "target",
-          "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
+          "label": {
+            "en": "Threshold",
+            "fr": "Seuil",
+            "de": "Schwelle",
+            "es": "Umbral"
+          },
+          "required": true,
+          "default": "10",
           "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
+            {
+              "value": "1",
+              "label": {
+                "en": "1",
+                "fr": "1",
+                "de": "1",
+                "es": "1"
+              }
+            },
+            {
+              "value": "5",
+              "label": {
+                "en": "5",
+                "fr": "5",
+                "de": "5",
+                "es": "5"
+              }
+            },
+            {
+              "value": "10",
+              "label": {
+                "en": "10",
+                "fr": "10",
+                "de": "10",
+                "es": "10"
+              }
+            },
+            {
+              "value": "25",
+              "label": {
+                "en": "25",
+                "fr": "25",
+                "de": "25",
+                "es": "25"
+              }
+            },
+            {
+              "value": "50",
+              "label": {
+                "en": "50",
+                "fr": "50",
+                "de": "50",
+                "es": "50"
+              }
+            },
+            {
+              "value": "100",
+              "label": {
+                "en": "100",
+                "fr": "100",
+                "de": "100",
+                "es": "100"
+              }
+            },
+            {
+              "value": "250",
+              "label": {
+                "en": "250",
+                "fr": "250",
+                "de": "250",
+                "es": "250"
+              }
+            },
+            {
+              "value": "500",
+              "label": {
+                "en": "500",
+                "fr": "500",
+                "de": "500",
+                "es": "500"
+              }
+            },
+            {
+              "value": "1000",
+              "label": {
+                "en": "1000",
+                "fr": "1000",
+                "de": "1000",
+                "es": "1000"
+              }
+            }
           ]
         }
       ],
       "variables": [
         {
-          "key": "target",
+          "key": "threshold",
+          "type": "number",
+          "label": {
+            "en": "Threshold",
+            "fr": "Seuil",
+            "de": "Schwelle",
+            "es": "Umbral"
+          }
+        },
+        {
+          "key": "viewers",
+          "type": "number",
+          "label": {
+            "en": "Viewers",
+            "fr": "Spectateurs",
+            "de": "Zuschauer",
+            "es": "Espectadores"
+          }
+        },
+        {
+          "key": "title",
           "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
+          "label": {
+            "en": "Stream title",
+            "fr": "Titre du direct",
+            "de": "Titel des Streams",
+            "es": "Título del directo"
+          }
+        },
+        {
+          "key": "server",
+          "type": "string",
+          "label": {
+            "en": "Server name",
+            "fr": "Nom du serveur",
+            "de": "Name des Servers",
+            "es": "Nombre del servidor"
+          }
         }
       ]
     }
   ],
   "scene_actions": [
     {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
+      "key": "get_stream_status",
+      "label": {
+        "en": "Stream status",
+        "fr": "État du direct",
+        "de": "Zustand des Streams",
+        "es": "Estado del directo"
       },
-      "timeout_seconds": 15,
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ],
+      "description": {
+        "en": "Reads the stream for the next actions: live or not, title, viewers, peak, duration, and a ready-made sentence.",
+        "fr": "Lit le direct pour les actions suivantes : en direct ou non, titre, spectateurs, pic, durée, et une phrase toute prête.",
+        "de": "Liest den Stream für die nächsten Aktionen: live oder nicht, Titel, Zuschauer, Spitze, Dauer und einen fertigen Satz.",
+        "es": "Lee el directo para las siguientes acciones: en directo o no, título, espectadores, pico, duración y una frase lista."
+      },
+      "timeout_seconds": 30,
       "outputs": [
         {
-          "key": "signalled",
+          "key": "live",
           "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
+          "label": {
+            "en": "Live",
+            "fr": "En direct",
+            "de": "Live",
+            "es": "En directo"
+          }
+        },
+        {
+          "key": "title",
+          "type": "string",
+          "label": {
+            "en": "Stream title",
+            "fr": "Titre du direct",
+            "de": "Titel des Streams",
+            "es": "Título del directo"
+          }
+        },
+        {
+          "key": "viewers",
+          "type": "number",
+          "label": {
+            "en": "Viewers",
+            "fr": "Spectateurs",
+            "de": "Zuschauer",
+            "es": "Espectadores"
+          }
+        },
+        {
+          "key": "peak_viewers",
+          "type": "number",
+          "label": {
+            "en": "Peak viewers",
+            "fr": "Pic de spectateurs",
+            "de": "Zuschauerspitze",
+            "es": "Pico de espectadores"
+          }
+        },
+        {
+          "key": "duration_minutes",
+          "type": "number",
+          "label": {
+            "en": "Duration (minutes)",
+            "fr": "Durée (minutes)",
+            "de": "Dauer (Minuten)",
+            "es": "Duración (minutos)"
+          }
+        },
+        {
+          "key": "sentence",
+          "type": "string",
+          "label": {
+            "en": "Sentence",
+            "fr": "Phrase",
+            "de": "Satz",
+            "es": "Frase"
+          }
+        }
+      ]
+    },
+    {
+      "key": "send_chat_message",
+      "label": {
+        "en": "Send a message to the chat",
+        "fr": "Envoyer un message dans le chat",
+        "de": "Nachricht in den Chat senden",
+        "es": "Enviar un mensaje al chat"
+      },
+      "description": {
+        "en": "Posts a system message in the chat of the stream (needs the access token of the configuration).",
+        "fr": "Publie un message système dans le chat du direct (demande le jeton d'accès de la configuration).",
+        "de": "Postet eine Systemnachricht im Chat des Streams (braucht das Zugriffstoken aus der Konfiguration).",
+        "es": "Publica un mensaje del sistema en el chat del directo (requiere el token de acceso de la configuración)."
+      },
+      "timeout_seconds": 30,
+      "fields": [
+        {
+          "key": "message",
+          "type": "string",
+          "label": {
+            "en": "Message",
+            "fr": "Message",
+            "de": "Nachricht",
+            "es": "Mensaje"
+          },
+          "placeholder": {
+            "en": "e.g. The doorbell rang, back in 2 minutes!",
+            "fr": "ex. On sonne à la porte, je reviens dans 2 minutes !",
+            "de": "z. B. Es klingelt, bin in 2 Minuten zurück!",
+            "es": "p. ej. Llaman a la puerta, vuelvo en 2 minutos."
+          },
+          "required": true
         }
       ]
     }
   ],
   "widgets": [
     {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
+      "key": "stream",
+      "label": {
+        "en": "Owncast stream",
+        "fr": "Direct Owncast",
+        "de": "Owncast-Stream",
+        "es": "Directo de Owncast"
       },
-      "icon": "activity",
-      "action_timeout_seconds": 15
+      "description": {
+        "en": "Live or not, title, viewers, peak and duration, or the last live.",
+        "fr": "En direct ou non, titre, spectateurs, pic et durée, ou le dernier direct.",
+        "de": "Live oder nicht, Titel, Zuschauer, Spitze und Dauer, oder der letzte Stream.",
+        "es": "En directo o no, título, espectadores, pico y duración, o el último directo."
+      },
+      "icon": "radio",
+      "action_timeout_seconds": 30
     }
   ]
 }
