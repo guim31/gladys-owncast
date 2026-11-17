@@ -1,6 +1,6 @@
 {
   "name": "gladys-owncast",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Owncast live streaming in Gladys Assistant: live or not, viewers, title, scene triggers when a live starts or ends, chat messages from scenes, a dashboard widget.",
   "type": "module",

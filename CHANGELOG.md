@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-17
+
 ### Changed
 
 - Integration SDK 0.16.1.
@@ -29,5 +31,6 @@ the notes of the version's GitHub Release.
 - The "Owncast stream" dashboard widget.
 - Texts and documentation in English, French, German and Spanish.
 
-[Unreleased]: https://github.com/guim31/gladys-owncast/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/guim31/gladys-owncast/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/guim31/gladys-owncast/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/guim31/gladys-owncast/releases/tag/v1.0.0
